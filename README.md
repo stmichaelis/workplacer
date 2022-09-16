@@ -28,6 +28,10 @@ beneficial to let your co-workers know in Mattermost where you currently are sit
         -url <URL of your mattermost server>
   -username string
         -username <Mattermost username>
+  -password string
+        -password <Mattermost password>
+  -showtoken boolean
+        -showtoken true|false: Wether to output the Mattermost access token to stdout (default false)
 ```
 
 ## Why there are a and b networks and not just one
@@ -43,14 +47,23 @@ Minimal usage:
 ```bash
 workplacer -token ASCRCYX793CYHRTWDS -url https://your.mattermost-server.net -username thatsme -acidr "192.168.3.0/24" -bcidr "10.2.0.0/16"
 ```
-# Mattermost access token
+# Logging in
 
-To avoid having to put your password onto the commandline this script relies on an access token. You can find the description on how to retrieve this token here: https://api.mattermost.com/#tag/authentication
+You can provide your password via the `-password`-option. To avoid putting your password into a script use the option `-showtoken` to have your token printed to the terminal once and from there on use this instead of the password, see below.
+
+If neither token nor password is provided on the commandline you are queried for the password. 
+
+## Mattermost access token
+
+To avoid having to put your password onto the commandline this script relies on an access token. 
+
+In case you don't want to put this token as a commandline option you can also set it to the environment variable `MATTERMOST_TOKEN`.
+
+You can use the password option of the script to retrieve the token or query the mattermost server directly: https://api.mattermost.com/#tag/authentication
 
 ```
 curl -i -d '{"login_id":"someone@nowhere.com","password":"thisisabadpassword"}' http://localhost:8065/api/v4/users/login
 ```
-In case you don't want to put this token as a commandline option you can also set it to the environment variable `MATTERMOST_TOKEN`.
 
 # Installation
 
