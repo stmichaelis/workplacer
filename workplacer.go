@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -11,13 +12,15 @@ import (
 )
 
 var (
-	mattermostURL string
-	authtoken     string
-	username      string
-	acidr, bcidr string
+	mattermostURL  string
+	authtoken      string
+	username       string
+	password       string
+	showtoken      bool
+	acidr, bcidr   string
 	aemoji, bemoji string
-	atext, btext string
-	atime, btime string
+	atext, btext   string
+	atime, btime   string
 )
 
 func init() {
@@ -32,6 +35,8 @@ func init() {
 	flag.StringVar(&btext, "btext", "At the office", "-btext <status text>: Description to use for custom status when connected to network B")
 	flag.StringVar(&atime, "atime", "18:00", "-atime <hh:mm>: Time of today when to clear status when connected to network A")
 	flag.StringVar(&btime, "btime", "18:00", "-btime <hh:mm>: Time of today when to clear status when connected to network B")
+	flag.StringVar(&password, "password", "", "Password of your Mattermost account")
+	flag.BoolVar(&showtoken, "showtoken", false, "Wether to output the Mattermost access token to stdout")
 
 	flag.Parse()
 
@@ -40,7 +45,7 @@ func init() {
 	}
 }
 
-func isInNetwork(cidr string) bool{
+func isInNetwork(cidr string) bool {
 	// Empty netmasks do not count as errors
 	if cidr == "" {
 		return false
@@ -54,7 +59,7 @@ func isInNetwork(cidr string) bool{
 		log.Fatalln(err)
 	}
 	for _, a := range addr {
-		i, _ , err := net.ParseCIDR(a.String())
+		i, _, err := net.ParseCIDR(a.String())
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -65,15 +70,27 @@ func isInNetwork(cidr string) bool{
 	return false
 }
 
-func activateStatus(emoji, text, times string){
+func activateStatus(emoji, text, times string) {
 	client := mattermost.NewAPIv4Client(mattermostURL)
 	client.AuthToken = authtoken
 	client.AuthType = "BEARER"
 
-	user, _, err := client.GetUserByUsername(username, "")
+	var user *mattermost.User
+	var err error
+
+	if authtoken != "" {
+		user, _, err = client.GetUserByUsername(username, "")
+	} else {
+		user, _, err = client.Login(username, password)
+	}
 
 	if err != nil {
 		log.Fatalln(err)
+	}
+
+	// Print authentication token for reuse in subsequent queries instead of password
+	if showtoken {
+		fmt.Println(client.AuthToken)
 	}
 
 	status := user.GetCustomStatus()
@@ -81,7 +98,7 @@ func activateStatus(emoji, text, times string){
 		status = &mattermost.CustomStatus{}
 	}
 	// Status different from status text set here => Keep current status
-	if (status.AreDurationAndExpirationTimeValid() && status.Text != atext && status.Text != btext && status.Text != "") {
+	if status.AreDurationAndExpirationTimeValid() && status.Text != atext && status.Text != btext && status.Text != "" {
 		log.Printf("Found status text: %v. Keeping current status.\n", status.Text)
 		return
 	}
@@ -110,9 +127,9 @@ func activateStatus(emoji, text, times string){
 }
 
 func main() {
-	if isInNetwork(acidr){
+	if isInNetwork(acidr) {
 		activateStatus(aemoji, atext, atime)
-	} else if isInNetwork(bcidr){
+	} else if isInNetwork(bcidr) {
 		activateStatus(bemoji, btext, btime)
 	} else {
 		log.Println("Not in range of given networks. Nothing done.")
