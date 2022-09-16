@@ -7,6 +7,9 @@ import (
 	"net"
 	"os"
 	"time"
+	"syscall"
+
+    "golang.org/x/term"
 
 	mattermost "github.com/mattermost/mattermost-server/v6/model"
 )
@@ -35,7 +38,7 @@ func init() {
 	flag.StringVar(&btext, "btext", "At the office", "-btext <status text>: Description to use for custom status when connected to network B")
 	flag.StringVar(&atime, "atime", "18:00", "-atime <hh:mm>: Time of today when to clear status when connected to network A")
 	flag.StringVar(&btime, "btime", "18:00", "-btime <hh:mm>: Time of today when to clear status when connected to network B")
-	flag.StringVar(&password, "password", "", "Password of your Mattermost account")
+	flag.StringVar(&password, "password", "", "-password <Password of your Mattermost account>")
 	flag.BoolVar(&showtoken, "showtoken", false, "Wether to output the Mattermost access token to stdout")
 
 	flag.Parse()
@@ -81,6 +84,17 @@ func activateStatus(emoji, text, times string) {
 	if authtoken != "" {
 		user, _, err = client.GetUserByUsername(username, "")
 	} else {
+		if password == "" {
+			// Reading password from commandline
+			fmt.Print("Password: ")
+			bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+			fmt.Println()
+    		if err != nil {
+        		log.Fatalln(err)
+    		}
+
+    		password = string(bytePassword)
+		}
 		user, _, err = client.Login(username, password)
 	}
 
