@@ -35,7 +35,9 @@ beneficial to let your co-workers know in Mattermost where you currently are sit
 ```
 
 ## Why there are a and b networks and not just one
-The script is overriding the status of each networks once it connects to the other one. This may happen if you start your work at home and then travel to the office later on. To not override other custom, manually set, custom statuses, this only happens if the text message is known to the script.
+The script is overriding the status of each networks once it connects to the other one. This may happen if you start your work at home and then travel to the office later on. To not override other, manually set, custom statuses, this only happens if the text message is known to the script.
+
+Example: You manually set your status to "on a vacation" and still open your machine while away. This will not override your vacation status.
 
 ## Why only two networks
 This is *my* typical scenario. In case you need more networks (working at the coffee shop) you can run the script twice, but have to live with the drawbacks of not overriding the former status (see above), or simply extend this script.
@@ -49,25 +51,42 @@ workplacer -token ASCRCYX793CYHRTWDS -url https://your.mattermost-server.net -us
 ```
 # Logging in
 
-You can provide your password via the `-password`-option. To avoid putting your password into a script use the option `-showtoken` to have your token printed to the terminal once and from there on use this instead of the password, see below.
+You can provide your password via the `-password`-option. To avoid putting your password into a script use the option `-showtoken` to have your token printed to the terminal once after login and from there on use this instead of the password, see below.
 
 If neither token nor password is provided on the commandline you are queried for the password. 
 
 ## Mattermost access token
 
-To avoid having to put your password onto the commandline this script relies on an access token. 
+To avoid having to put your password onto the commandline, this script can use an access token.
 
-In case you don't want to put this token as a commandline option you can also set it to the environment variable `MATTERMOST_TOKEN`.
+In case you don't want to put this token as a commandline option, you can also set it to the environment variable `MATTERMOST_TOKEN`.
 
-You can use the password option of the script to retrieve the token or query the mattermost server directly: https://api.mattermost.com/#tag/authentication
+### Personal access tokens
+Mattermost allows creating permanent, personal tokens, *if* enabled globally and for you specifically by the server administrator. Go to *Account Settings > Security > Personal Access Tokens*, then select *Create New Token*.
+
+### Standard session tokens
+You can use the password option of the script to login, retrieve a token and have it display on stdout via `-showtoken`.
+
+Example:
+```bash
+workplacer -password - -showtoken -url https://your.mattermost-server.net -username thatsme -acidr "192.168.3.0/24" -bcidr "10.2.0.0/16"
+```
+
+Or you query the mattermost server directly: https://api.mattermost.com/#tag/authentication
 
 ```
 curl -i -d '{"login_id":"someone@nowhere.com","password":"thisisabadpassword"}' http://localhost:8065/api/v4/users/login
 ```
 
+Please be aware that these tokens may expire after some time, based on the session lenght limit set by the server administrator.
+
 # Installation
 
-You need to have a compiler for the go programming language locally installed.
+## Precompiled binaries
+For your convenience you can find precompiled binaries on the release page of this repository for several operating systems (currently tested only on Windows). This is just a simple binary without any further dependencies, which you can place at a suitable location on your system for calling from the commandline/task scheduler.
+
+## Installation from source
+You need to have a compiler for the go programming language version >= 1.18 locally installed, then run:
 
 ```
 go install github.com/stmichaelis/workplacer@latest
@@ -75,7 +94,7 @@ go install github.com/stmichaelis/workplacer@latest
 
 May take a while to download as it is using the official Mattermost API binding.
 
-# Automatic run on Windows based on connection events
+# Automatic execution on Windows based on connection events
 On Windows you can use the task scheduler to trigger a run of the script based on network connection events. Select in the trigger section to run *on an event*, log should be set to *Microsoft-Windows-NetworkProfile/Operational*, source to *NetworkProfile* and event id to *10000*.
 
 # False positives when running the script
