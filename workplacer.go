@@ -38,7 +38,7 @@ func init() {
 	flag.StringVar(&btext, "btext", "At the office", "-btext <status text>: Description to use for custom status when connected to network B")
 	flag.StringVar(&atime, "atime", "18:00", "-atime <hh:mm>: Time of today when to clear status when connected to network A")
 	flag.StringVar(&btime, "btime", "18:00", "-btime <hh:mm>: Time of today when to clear status when connected to network B")
-	flag.StringVar(&password, "password", "", "-password <Password of your Mattermost account>")
+	flag.StringVar(&password, "password", "", "-password <Password of your Mattermost account>. Reads from stdin if set to \"-\" or empty and no authenticaton token set.")
 	flag.BoolVar(&showtoken, "showtoken", false, "Wether to output the Mattermost access token to stdout")
 
 	flag.Parse()
@@ -48,6 +48,7 @@ func init() {
 	}
 }
 
+// isInNetwork returns if the running computer is connected to the network identified by "cidr"
 func isInNetwork(cidr string) bool {
 	// Empty netmasks do not count as errors
 	if cidr == "" {
@@ -73,6 +74,8 @@ func isInNetwork(cidr string) bool {
 	return false
 }
 
+// activateStatus sets the custom status message using the give "emoji" identifier and message "text".
+// Set expiration to "times"
 func activateStatus(emoji, text, times string) {
 	client := mattermost.NewAPIv4Client(mattermostURL)
 	client.AuthToken = authtoken
@@ -81,10 +84,11 @@ func activateStatus(emoji, text, times string) {
 	var user *mattermost.User
 	var err error
 
-	if authtoken != "" {
+	// Use authorization token only if not overriden by password
+	if authtoken != "" && password == "" {
 		user, _, err = client.GetUserByUsername(username, "")
 	} else {
-		if password == "" {
+		if password == "" || password == "-" {
 			// Reading password from commandline
 			fmt.Print("Password: ")
 			bytePassword, err := term.ReadPassword(int(syscall.Stdin))
