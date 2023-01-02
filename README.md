@@ -29,9 +29,11 @@ beneficial to let your co-workers know in Mattermost where you currently are sit
   -username string
         -username <Mattermost username>
   -password string
-        -password <Mattermost password>
+        -password <Mattermost password>. Reads from stdin if set to - or empty and no authenticaton token set.
   -showtoken boolean
         -showtoken true|false: Wether to output the Mattermost access token to stdout (default false)
+  -mlog boolean
+        Sends log messages to the given Mattermost user in addition to stdout if set
 ```
 
 ## Why there are a and b networks and not just one
@@ -78,7 +80,7 @@ Or you query the mattermost server directly: https://api.mattermost.com/#tag/aut
 curl -i -d '{"login_id":"someone@nowhere.com","password":"thisisabadpassword"}' http://localhost:8065/api/v4/users/login
 ```
 
-Please be aware that these tokens may expire after some time, based on the session lenght limit set by the server administrator.
+Please be aware that these tokens may expire after some time, based on the session lenght limit set by the server administrator. Setting a custom status does not refresh this token. You can use the `mlog` option to have the script post log messages to yourself, which should refresh the token for a Mattermost server with default settings. 
 
 # Installation
 

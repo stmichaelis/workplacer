@@ -6,15 +6,17 @@ import (
 	"log"
 	"net"
 	"os"
-	"time"
 	"syscall"
+	"time"
 
-    "golang.org/x/term"
+	"golang.org/x/term"
 
 	mattermost "github.com/mattermost/mattermost-server/v6/model"
 )
 
 var (
+	client         *mattermost.Client4
+	user           *mattermost.User
 	mattermostURL  string
 	authtoken      string
 	username       string
@@ -24,6 +26,7 @@ var (
 	aemoji, bemoji string
 	atext, btext   string
 	atime, btime   string
+	mlog           bool
 )
 
 func init() {
@@ -40,6 +43,7 @@ func init() {
 	flag.StringVar(&btime, "btime", "18:00", "-btime <hh:mm>: Time of today when to clear status when connected to network B")
 	flag.StringVar(&password, "password", "", "-password <Password of your Mattermost account>. Reads from stdin if set to \"-\" or empty and no authenticaton token set.")
 	flag.BoolVar(&showtoken, "showtoken", false, "Wether to output the Mattermost access token to stdout")
+	flag.BoolVar(&mlog, "mlog", false, "Sends log messages to the given Mattermost user in addition to stdout if set")
 
 	flag.Parse()
 
@@ -56,16 +60,16 @@ func isInNetwork(cidr string) bool {
 	}
 	_, ipNet, err := net.ParseCIDR(cidr)
 	if err != nil {
-		log.Fatalln(err)
+		matterlog(err.Error(), "", true)
 	}
 	addr, err := net.InterfaceAddrs()
 	if err != nil {
-		log.Fatalln(err)
+		matterlog(err.Error(), "", true)
 	}
 	for _, a := range addr {
 		i, _, err := net.ParseCIDR(a.String())
 		if err != nil {
-			log.Fatalln(err)
+			matterlog(err.Error(), "", true)
 		}
 		if ipNet.Contains(i) {
 			return true
@@ -74,14 +78,12 @@ func isInNetwork(cidr string) bool {
 	return false
 }
 
-// activateStatus sets the custom status message using the give "emoji" identifier and message "text".
-// Set expiration to "times"
-func activateStatus(emoji, text, times string) {
-	client := mattermost.NewAPIv4Client(mattermostURL)
+// mattermostLogin logs you into the server using presented credentials
+func mattermostLogin() error {
+	client = mattermost.NewAPIv4Client(mattermostURL)
 	client.AuthToken = authtoken
 	client.AuthType = "BEARER"
 
-	var user *mattermost.User
 	var err error
 
 	// Use authorization token only if not overriden by password
@@ -93,22 +95,35 @@ func activateStatus(emoji, text, times string) {
 			fmt.Print("Password: ")
 			bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 			fmt.Println()
-    		if err != nil {
-        		log.Fatalln(err)
-    		}
+			if err != nil {
+				return err
+			}
 
-    		password = string(bytePassword)
+			password = string(bytePassword)
 		}
 		user, _, err = client.Login(username, password)
 	}
 
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	// Print authentication token for reuse in subsequent queries instead of password
 	if showtoken {
 		fmt.Println(client.AuthToken)
+	}
+
+	return nil
+}
+
+// activateStatus sets the custom status message using the give "emoji" identifier and message "text".
+// Set expiration to "times"
+func activateStatus(emoji, text, times string) {
+	if client == nil || user == nil {
+		err := mattermostLogin()
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 
 	status := user.GetCustomStatus()
@@ -117,7 +132,7 @@ func activateStatus(emoji, text, times string) {
 	}
 	// Status different from status text set here => Keep current status
 	if status.AreDurationAndExpirationTimeValid() && status.Text != atext && status.Text != btext && status.Text != "" {
-		log.Printf("Found status text: %v. Keeping current status.\n", status.Text)
+		matterlog("Found status text: %v. Keeping current status.\n", status.Text, false)
 		return
 	}
 
@@ -127,7 +142,7 @@ func activateStatus(emoji, text, times string) {
 
 	tofexpiry, err := time.ParseInLocation("15:04", times, loc)
 	if err != nil {
-		log.Fatalln(err)
+		matterlog(err.Error(), "", true)
 	}
 	tofexpiry = time.Date(now.Year(), now.Month(), now.Day(), tofexpiry.Hour(), tofexpiry.Minute(), 0, 0, loc)
 
@@ -139,9 +154,50 @@ func activateStatus(emoji, text, times string) {
 	status.PreSave()
 	_, _, err = client.UpdateUserCustomStatus(user.Id, status)
 	if err != nil {
-		log.Fatalln(err)
+		matterlog(err.Error(), "", true)
 	}
-	log.Printf("Status successfully set to: %v\n", status.Text)
+	matterlog("Status successfully set to: %v\n", status.Text, false)
+}
+
+// matterlog sends the log message to the account set by "username" in parallel to stdout
+func matterlog(message, info string, fatal bool) {
+	var msg string
+	var err error
+	if info != "" {
+		msg = fmt.Sprintf(message, info)
+	} else {
+		msg = message
+	}
+	// Logging direct message to username on Mattermost server
+	if mlog {
+		if client == nil || user == nil {
+			err = mattermostLogin()
+		}
+		if err != nil {
+			log.Println(err)
+		} else {
+			channel, _, err := client.CreateDirectChannel(user.Id, user.Id)
+			if err != nil {
+				log.Println(err)
+			} else {
+				post := &mattermost.Post{
+					UserId:    user.Id,
+					ChannelId: channel.Id,
+					Message:   msg,
+				}
+				_, _, err = client.CreatePost(post)
+				if err != nil {
+					log.Println(err)
+				}
+			}
+		}
+	}
+	// Console log
+	if !fatal {
+		log.Print(msg)
+	} else {
+		log.Fatalln(msg)
+	}
 }
 
 func main() {
@@ -150,6 +206,6 @@ func main() {
 	} else if isInNetwork(bcidr) {
 		activateStatus(bemoji, btext, btime)
 	} else {
-		log.Println("Not in range of given networks. Nothing done.")
+		matterlog("Not in range of given networks. Nothing done.\n", "", false)
 	}
 }
