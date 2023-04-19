@@ -7,7 +7,7 @@ beneficial to let your co-workers know in Mattermost where you currently are sit
 
 ```
   -acidr string
-        -acidr <Class Inter-Doman Routing>: CIDR address of network A, e.g. 192.168.1.0/24 for all ip addresses in 192.168.1.*
+        -acidr <Class Inter-Doman Routing>: CIDR address of network A, e.g. 192.168.1.0/24 for all ip addresses in 192.168.1.*. Multiple address spaces may be separated by comma.
   -aemoji string
         -aemoji <emoji>: Emoji to use for custom status when connected to network A (default "house")
   -atext string
@@ -15,25 +15,25 @@ beneficial to let your co-workers know in Mattermost where you currently are sit
   -atime string
         -atime <hh:mm>: Time of today when to clear status when connected to network A (default "18:00")
   -bcidr string
-        -bcidr <Class Inter-Doman Routing>: CIDR addrs of network B, e.g. 192.168.1.0/24 for all ip addresses in 192.168.1.*
+        -bcidr <Class Inter-Doman Routing>: CIDR address of network B, e.g. 192.168.1.0/24 for all ip addresses in 192.168.1.*. Multiple address spaces may be separated by comma.
   -bemoji string
         -bemoji <emoji>: Emoji to use for custom status when connected to network B (default "office")
   -btext string
         -btext <status text>: Description to use for custom status when connected to network B (default "At the office")
   -btime string
         -btime <hh:mm>: Time of today when to clear status when connected to network B (default "18:00")
+  -mlog
+        Sends log messages to the given Mattermost user in addition to stdout if set
+  -password string
+        -password <Password of your Mattermost account>. Reads from stdin if set to "-" or empty and no authenticaton token set.
+  -showtoken
+        Wether to output the Mattermost access token to stdout
   -token string
         -token <Mattermost User Authorization Token>
   -url string
         -url <URL of your mattermost server>
   -username string
-        -username <Mattermost username>
-  -password string
-        -password <Mattermost password>. Reads from stdin if set to - or empty and no authenticaton token set.
-  -showtoken boolean
-        -showtoken true|false: Wether to output the Mattermost access token to stdout (default false)
-  -mlog boolean
-        Sends log messages to the given Mattermost user in addition to stdout if set
+        -username <Mattermost username without leading @>
 ```
 
 ## Why there are a and b networks and not just one
@@ -104,6 +104,6 @@ On Windows you can use the task scheduler to trigger a run of the script based o
 False positive, i.e. setting the wrong status, may occur when there is an overlap between home and work networks, you are using a VPN, or using the device at a place (e.g. coffee shops) which is neither work nor home and using the same private IP network from one of your other locations. You can try:
 
 * For VPNs (which in most cases are for connecting to the work network) you should set your home network to the `acidr` network. The a-networks takes precedence over the b-network and even when in a VPN your home network should still be there.
-* Think about using IPv6 addresses. Many providers keep the first parts of your assigned network adress constant, based on physical location.
+* Think about using IPv6 addresses like `2001:db8::/32`  Many providers keep the first parts of your assigned network adress constant, based on physical location.
 * For WiFi-connections: Let the script only run when connected to specific networks. In the Windows task scheduler you can select the specific network on the *conditions* tab.
 * Change your local home network address space. It's your network after all.

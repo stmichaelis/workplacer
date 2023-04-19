@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,8 +34,8 @@ func init() {
 	flag.StringVar(&mattermostURL, "url", "", "-url <URL of your mattermost server>")
 	flag.StringVar(&authtoken, "token", "", "-token <Mattermost User Authorization Token>")
 	flag.StringVar(&username, "username", "", "-username <Mattermost username without leading @>")
-	flag.StringVar(&acidr, "acidr", "", "-acidr <Class Inter-Doman Routing>: CIDR address of network A, e.g. 192.168.1.0/24 for all ip addresses in 192.168.1.*")
-	flag.StringVar(&bcidr, "bcidr", "", "-bcidr <Class Inter-Doman Routing>: CIDR addrs of network B, e.g. 192.168.1.0/24 for all ip addresses in 192.168.1.*")
+	flag.StringVar(&acidr, "acidr", "", "-acidr <Class Inter-Doman Routing>: CIDR address of network A, e.g. 192.168.1.0/24 for all ip addresses in 192.168.1.*. Multiple address spaces may be separated by comma.")
+	flag.StringVar(&bcidr, "bcidr", "", "-bcidr <Class Inter-Doman Routing>: CIDR addrs of network B, e.g. 192.168.1.0/24 for all ip addresses in 192.168.1.*. Multiple address spaces may be separated by comma.")
 	flag.StringVar(&aemoji, "aemoji", "house", "-aemoji <emoji>: Emoji to use for custom status when connected to network A")
 	flag.StringVar(&bemoji, "bemoji", "office", "-bemoji <emoji>: Emoji to use for custom status when connected to network B")
 	flag.StringVar(&atext, "atext", "Working from home", "-atext <status text>: Description to use for custom status when connected to network A")
@@ -52,27 +53,30 @@ func init() {
 	}
 }
 
-// isInNetwork returns if the running computer is connected to the network identified by "cidr"
-func isInNetwork(cidr string) bool {
+// isInNetwork returns true if the running computer is connected to the networks identified by "cidr"
+func isInNetwork(cidrs string) bool {
 	// Empty netmasks do not count as errors
-	if cidr == "" {
+	if cidrs == "" {
 		return false
 	}
-	_, ipNet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		matterlog(err.Error(), "", true)
-	}
-	addr, err := net.InterfaceAddrs()
-	if err != nil {
-		matterlog(err.Error(), "", true)
-	}
-	for _, a := range addr {
-		i, _, err := net.ParseCIDR(a.String())
+	cidrList := strings.Split(cidrs, ",")
+	for _, cidr := range cidrList {
+		_, ipNet, err := net.ParseCIDR(cidr)
 		if err != nil {
 			matterlog(err.Error(), "", true)
 		}
-		if ipNet.Contains(i) {
-			return true
+		addr, err := net.InterfaceAddrs()
+		if err != nil {
+			matterlog(err.Error(), "", true)
+		}
+		for _, a := range addr {
+			i, _, err := net.ParseCIDR(a.String())
+			if err != nil {
+				matterlog(err.Error(), "", true)
+			}
+			if ipNet.Contains(i) {
+				return true
+			}
 		}
 	}
 	return false
