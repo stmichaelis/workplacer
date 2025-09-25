@@ -130,6 +130,11 @@ func activateStatus(emoji, text, times string) {
 		}
 	}
 
+	if emoji == "" && text == "" {
+		return
+	}
+
+
 	status := user.GetCustomStatus()
 	if status == nil {
 		status = &mattermost.CustomStatus{}
